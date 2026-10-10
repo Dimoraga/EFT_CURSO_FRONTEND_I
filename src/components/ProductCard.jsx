@@ -17,6 +17,7 @@ function ProductCard({ producto, variant = 'home', onAgregar, enCarrito = false 
       <div className="card h-100">
         <img src={producto.imagen} className={imagenClase} alt={producto.alt} loading="lazy" />
         <div className="card-body">
+          {producto.genero && <span className="card-genero">{producto.genero}</span>}
           <p className="card-text">{producto.nombre}</p>
           <p>{producto.descripcion}</p>
           <p>{formatoPrecio(producto.precio)}</p>

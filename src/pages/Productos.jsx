@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useLocation, useSearchParams } from 'react-router-dom'
-import CardSkeleton from '../components/CardSkeleton'
-import ProductCard from '../components/ProductCard'
+import FiltroCategorias from '../components/FiltroCategorias'
+import ListaVideojuegos from '../components/ListaVideojuegos'
 import Toast from '../components/Toast'
 import useProductos from '../hooks/useProductos'
 
@@ -11,12 +11,12 @@ const merchandising = [
   'Pósters y arte conceptual de juegos populares',
 ]
 
-function Productos() {
+function Productos({ categoria, genero, onCategoriaChange, onGeneroChange }) {
   const { productos, cargando, error, recargar } = useProductos()
   const [carrito, setCarrito] = useState([])
   const [toast, setToast] = useState('')
   const toastTimeout = useRef(null)
-  const [searchParams] = useSearchParams()
+  const [searchParams, setSearchParams] = useSearchParams()
   const location = useLocation()
   const busqueda = (searchParams.get('busqueda') || '').trim().toLowerCase()
 
@@ -28,20 +28,27 @@ function Productos() {
 
   useEffect(() => () => clearTimeout(toastTimeout.current), [])
 
+  // Géneros disponibles, obtenidos de los mismos juegos del catálogo
+  const generos = useMemo(() => {
+    const unicos = new Set(productos.map((producto) => producto.genero).filter(Boolean))
+    return [...unicos].sort((a, b) => a.localeCompare(b, 'es'))
+  }, [productos])
+
   const productosFiltrados = useMemo(() => {
-    if (!busqueda) return productos
-    return productos.filter((producto) => producto.nombre.toLowerCase().includes(busqueda))
-  }, [productos, busqueda])
-
-  const porCategoria = useMemo(() => {
-    const grupos = { consolas: [], juegos: [], accesorios: [] }
-    productosFiltrados.forEach((producto) => {
-      if (grupos[producto.categoria]) grupos[producto.categoria].push(producto)
+    return productos.filter((producto) => {
+      if (busqueda && !producto.nombre.toLowerCase().includes(busqueda)) return false
+      if (categoria !== 'todos' && producto.categoria !== categoria) return false
+      if (categoria === 'juegos' && genero !== 'todos' && producto.genero !== genero) return false
+      return true
     })
-    return grupos
-  }, [productosFiltrados])
+  }, [productos, busqueda, categoria, genero])
 
-  const sinCoincidencias = busqueda.length > 0 && !cargando && productosFiltrados.length === 0
+  const sinCoincidencias = !cargando && !error && productos.length > 0 && productosFiltrados.length === 0
+
+  const quitarFiltros = () => {
+    onCategoriaChange('todos')
+    setSearchParams({})
+  }
 
   const idsEnCarrito = useMemo(() => new Set(carrito.map((item) => item.id)), [carrito])
 
@@ -64,89 +71,52 @@ function Productos() {
   return (
     <main>
       <h2>Lista de Productos</h2>
+      <FiltroCategorias
+        categoria={categoria}
+        genero={genero}
+        generos={generos}
+        cantidad={productosFiltrados.length}
+        cargando={cargando}
+        onCategoriaChange={onCategoriaChange}
+        onGeneroChange={onGeneroChange}
+      />
+
       {sinCoincidencias && (
-        <p className="catalogo-estado" role="status" aria-live="polite">
-          No encontramos productos que coincidan con tu búsqueda.
-        </p>
+        <div className="catalogo-error" role="status" aria-live="polite">
+          <p className="catalogo-estado">No encontramos productos que coincidan con tu búsqueda o filtro.</p>
+          <button type="button" className="button secondary" onClick={quitarFiltros}>Quitar filtros</button>
+        </div>
       )}
 
       <div className="productos-layout">
         <div className="productos-contenido">
-          {cargando && (
+          <ListaVideojuegos
+            productos={productosFiltrados}
+            cargando={cargando}
+            error={error}
+            onReintentar={recargar}
+            onAgregar={agregarAlCarrito}
+            idsEnCarrito={idsEnCarrito}
+          />
+
+          {/* Sección de venta de merchandising (no es parte del catálogo JSON,
+              por eso solo se muestra cuando no hay una categoría seleccionada) */}
+          {categoria === 'todos' && (
             <>
-              <h3>Cargando catálogo…</h3>
+              <h3 id="merchandising">Merchandising</h3>
               <div className="row g-4">
-                <CardSkeleton cantidad={6} columnClass="col-12 col-sm-6 col-md-4 producto" />
-              </div>
-            </>
-          )}
-
-          {!cargando && error && (
-            <div className="catalogo-error" role="alert">
-              <p className="catalogo-estado">No pudimos cargar los productos. Intenta nuevamente más tarde.</p>
-              <button type="button" className="button secondary" onClick={recargar}>Reintentar</button>
-            </div>
-          )}
-
-          {!cargando && !error && (
-            <>
-              {/* Sección de Consolas Retro */}
-              <h3 id="consolas-retro">Consolas Retro</h3>
-              <div className="row g-4">
-                {porCategoria.consolas.map((producto) => (
-                  <ProductCard
-                    key={producto.id}
-                    producto={producto}
-                    variant="catalogo"
-                    onAgregar={agregarAlCarrito}
-                    enCarrito={idsEnCarrito.has(producto.id)}
-                  />
-                ))}
-              </div>
-
-              {/* Sección de Venta de Videojuegos */}
-              <h3 id="juegos">Juegos</h3>
-              <div className="row g-4">
-                {porCategoria.juegos.map((producto) => (
-                  <ProductCard
-                    key={producto.id}
-                    producto={producto}
-                    variant="catalogo"
-                    onAgregar={agregarAlCarrito}
-                    enCarrito={idsEnCarrito.has(producto.id)}
-                  />
-                ))}
-              </div>
-
-              {/* Sección de venta de accesorios */}
-              <h3 id="accesorios">Accesorios</h3>
-              <div className="row g-4">
-                {porCategoria.accesorios.map((producto) => (
-                  <ProductCard
-                    key={producto.id}
-                    producto={producto}
-                    variant="catalogo"
-                    onAgregar={agregarAlCarrito}
-                    enCarrito={idsEnCarrito.has(producto.id)}
-                  />
-                ))}
-              </div>
-            </>
-          )}
-
-          {/* Sección de venta de merchandising */}
-          <h3 id="merchandising">Merchandising</h3>
-          <div className="row g-4">
-            {merchandising.map((texto) => (
-              <div className="col-12 col-sm-6 col-md-4" key={texto}>
-                <div className="card h-100">
-                  <div className="card-body">
-                    <p className="card-text">{texto}</p>
+                {merchandising.map((texto) => (
+                  <div className="col-12 col-sm-6 col-md-4" key={texto}>
+                    <div className="card h-100">
+                      <div className="card-body">
+                        <p className="card-text">{texto}</p>
+                      </div>
+                    </div>
                   </div>
-                </div>
+                ))}
               </div>
-            ))}
-          </div>
+            </>
+          )}
         </div>
 
         {/* Se implementa el carrito de compras de la tienda */}

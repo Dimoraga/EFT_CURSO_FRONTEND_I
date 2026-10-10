@@ -1,3 +1,5 @@
+import ContactForm from '../components/ContactForm'
+
 function Contacto() {
   return (
     <main>
@@ -5,6 +7,17 @@ function Contacto() {
         <span className="eyebrow">Hablemos</span>
         <h2>¿Tienes preguntas? Contáctanos</h2>
         <p>Si tienes alguna pregunta o necesitas ayuda, no dudes en contactarnos a través de cualquiera de estos canales.</p>
+      </section>
+
+      <section className="contact-form">
+        <div className="contact-form-cabecera">
+          <span className="icon" aria-hidden="true">💬</span>
+          <div>
+            <h3>Formulario de contacto</h3>
+            <p>Completa el formulario y nos pondremos en contacto contigo lo antes posible.</p>
+          </div>
+        </div>
+        <ContactForm />
       </section>
 
       <section className="info-grid">
